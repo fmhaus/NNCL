@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(.venv/Scripts/python -c \"import pytorch_lightning; print\\(pytorch_lightning.__version__\\)\")",
+      "Bash(.venv/Scripts/python -c \"import lightning; print\\(lightning.__version__\\)\")"
     ]
   }
 }

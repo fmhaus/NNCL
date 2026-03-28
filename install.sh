@@ -54,6 +54,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 
 # ----------------------------
+# Setup Python project with uv
+# ----------------------------
+echo "=== Setting up Python project ==="
+uv sync
+uv pip install .[dali,umap,h5] --extra-index-url https://developer.download.nvidia.com/compute/redist
+uv pip install ./solo-learn --no-build-isolation
+
+# ----------------------------
 # Start Syncthing
 # ----------------------------
 echo "=== Starting Syncthing ==="

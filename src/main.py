@@ -1,14 +1,30 @@
 import argparse
 from pathlib import Path
 
-import pytorch_lightning as pl
+import omegaconf
+import lightning.pytorch as pl
+from torchvision import transforms
 from solo.methods import SimCLR
-from solo.utils.pretrain_dataloader import (
-    CifarTransform,
+from solo.data.pretrain_dataloader import (
+    NCropAugmentation,
+    FullTransformPipeline,
     prepare_dataloader,
     prepare_datasets,
-    prepare_n_crop_transform,
 )
+
+CIFAR100_MEAN = (0.5071, 0.4865, 0.4409)
+CIFAR100_STD = (0.2673, 0.2564, 0.2762)
+
+
+def build_cifar_transform() -> transforms.Compose:
+    return transforms.Compose([
+        transforms.RandomResizedCrop(32, scale=(0.08, 1.0), interpolation=transforms.InterpolationMode.BICUBIC),
+        transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=CIFAR100_MEAN, std=CIFAR100_STD),
+    ])
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,35 +37,71 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument("--proj_output_dim", type=int, default=128)
     parser.add_argument("--proj_hidden_dim", type=int, default=2048)
-    parser.add_argument("--num_workers", type=int, default=4)
-    parser.add_argument("--gpus", type=int, default=1)
+    parser.add_argument("--num_workers", type=int, default=0)
+    parser.add_argument("--gpus", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
+
+
+def build_cfg(args: argparse.Namespace) -> omegaconf.DictConfig:
+    cfg = omegaconf.OmegaConf.create({
+        "method": "simclr",
+        "backbone": {
+            "name": "resnet18",
+            "kwargs": {},
+        },
+        "data": {
+            "dataset": "cifar100",
+            "num_classes": 100,
+            "num_large_crops": 2,
+            "num_small_crops": 0,
+        },
+        "max_epochs": args.max_epochs,
+        "accumulate_grad_batches": 1,
+        "optimizer": {
+            "name": "sgd",
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "weight_decay": args.weight_decay,
+            "classifier_lr": 0.1,
+            "exclude_bias_n_norm_wd": True,
+            "kwargs": {"momentum": 0.9},
+        },
+        "scheduler": {
+            "name": "warmup_cosine",
+            "min_lr": 0.0,
+            "warmup_start_lr": 0.003,
+            "warmup_epochs": 10,
+            "lr_decay_steps": None,
+            "interval": "step",
+        },
+        "knn_eval": {
+            "enabled": True,
+            "k": 20,
+            "distance_func": "euclidean",
+        },
+        "performance": {
+            "disable_channel_last": False,
+        },
+        "method_kwargs": {
+            "proj_output_dim": args.proj_output_dim,
+            "proj_hidden_dim": args.proj_hidden_dim,
+            "temperature": args.temperature,
+        },
+    })
+    return cfg
 
 
 def main():
     args = parse_args()
     pl.seed_everything(args.seed)
 
-    # Two augmented views per image (standard SimCLR)
-    cifar_transform = CifarTransform(
-        brightness=0.4,
-        contrast=0.4,
-        saturation=0.4,
-        hue=0.1,
-        color_jitter_prob=0.8,
-        gray_scale_prob=0.2,
-        horizontal_flip_prob=0.5,
-        gaussian_prob=0.0,
-        solarization_prob=0.0,
-        crop_size=32,
-    )
-    transform = prepare_n_crop_transform([cifar_transform], num_crops_per_aug=[2])
+    transform = FullTransformPipeline([NCropAugmentation(build_cifar_transform(), 2)])
 
     train_dataset = prepare_datasets(
         dataset="cifar100",
         transform=transform,
-        data_dir=Path(args.data_dir),
+        train_data_path=Path(args.data_dir),
         download=True,
     )
     train_loader = prepare_dataloader(
@@ -58,45 +110,17 @@ def main():
         num_workers=args.num_workers,
     )
 
-    model = SimCLR(
-        # SimCLR
-        proj_output_dim=args.proj_output_dim,
-        proj_hidden_dim=args.proj_hidden_dim,
-        temperature=args.temperature,
-        supervised=False,
-        # Backbone
-        encoder="resnet18",
-        num_classes=100,
-        backbone_args={"cifar": True},
-        # Training
-        max_epochs=args.max_epochs,
-        batch_size=args.batch_size,
-        optimizer="sgd",
-        lars=True,
-        lr=args.lr,
-        weight_decay=args.weight_decay,
-        classifier_lr=0.1,
-        exclude_bias_n_norm=True,
-        accumulate_grad_batches=1,
-        extra_optimizer_args={"momentum": 0.9},
-        scheduler="warmup_cosine",
-        min_lr=0.0,
-        warmup_start_lr=0.003,
-        warmup_epochs=10,
-        num_large_crops=2,
-        num_small_crops=0,
-        eta_lars=1e-3,
-        grad_clip_lars=False,
-        knn_eval=True,
-        knn_k=20,
-    )
+    cfg = build_cfg(args)
+    model = SimCLR(cfg)
 
+    import torch
+    use_gpu = args.gpus > 0 and torch.cuda.is_available()
     trainer = pl.Trainer(
         max_epochs=args.max_epochs,
-        gpus=args.gpus,
-        sync_batchnorm=True,
-        accelerator="gpu" if args.gpus > 0 else "cpu",
-        precision=16,
+        devices=args.gpus if use_gpu else 1,
+        accelerator="gpu" if use_gpu else "cpu",
+        sync_batchnorm=use_gpu,
+        precision="16-mixed" if use_gpu else "32",
     )
     trainer.fit(model, train_loader)
 
