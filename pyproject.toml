@@ -1,0 +1,17 @@
+[project]
+name = "nncl"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.9.*"
+dependencies = [
+    "lightning>=1.8.6",
+    "solo-learn>=1.0.2",
+    "torch>=1.9.1",
+    "torchvision>=0.10.1",
+    "tqdm>=4.67.3",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

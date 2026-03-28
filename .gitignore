@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# PyTorch / Lightning
+lightning_logs/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.bin
+
+# Data
+data/
+datasets/
+*.csv
+*.npy
+*.npz
+*.h5
+*.hdf5
+
+# Logs & outputs
+logs/
+runs/
+wandb/
+mlruns/
+outputs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
