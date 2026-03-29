@@ -11,6 +11,8 @@ from solo.data.pretrain_dataloader import (
     prepare_dataloader,
     prepare_datasets,
 )
+from torch.utils.data import DataLoader
+from solo.data.classification_dataloader import prepare_datasets as prepare_cls_datasets
 
 CIFAR100_MEAN = (0.5071, 0.4865, 0.4409)
 CIFAR100_STD = (0.2673, 0.2564, 0.2762)
@@ -40,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--gpus", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--val_every_n_epochs", type=int, default=1)
     return parser.parse_args()
 
 
@@ -96,7 +99,7 @@ def main():
     args = parse_args()
     pl.seed_everything(args.seed)
 
-    transform = FullTransformPipeline([NCropAugmentation(build_cifar_transform(), 2)])
+    transform = FullTransformPipeline([NCropAugmentation(build_cifar_transform(), 2)]) # type: ignore
 
     train_dataset = prepare_datasets(
         dataset="cifar100",
@@ -110,6 +113,24 @@ def main():
         num_workers=args.num_workers,
     )
 
+    _, val_dataset = prepare_cls_datasets(
+        dataset="cifar100",
+        T_train=transforms.ToTensor(),  # unused, we only need val
+        T_val=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=CIFAR100_MEAN, std=CIFAR100_STD),
+        ]),
+        train_data_path=Path(args.data_dir),
+        val_data_path=Path(args.data_dir),
+        download=True,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        pin_memory=args.gpus > 0,
+    )
+
     cfg = build_cfg(args)
     model = SimCLR(cfg)
 
@@ -121,8 +142,9 @@ def main():
         accelerator="gpu" if use_gpu else "cpu",
         sync_batchnorm=use_gpu,
         precision="16-mixed" if use_gpu else "32",
+        check_val_every_n_epoch=args.val_every_n_epochs,
     )
-    trainer.fit(model, train_loader)
+    trainer.fit(model, train_loader, val_loader)
 
 
 if __name__ == "__main__":
