@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Optional
 
 try:
@@ -23,6 +25,14 @@ class EpochMetricsPrinter(pl.Callback):
         self._cleared_metrics: set = set()
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
+        if self._log_params and trainer.logger:
+            trainer.logger.log_hyperparams(self._log_params)
+            log_dir = trainer.logger.log_dir
+            if log_dir:
+                args_path = Path(log_dir) / "args.json"
+                args_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(args_path, "w") as f:
+                    json.dump(self._log_params, f, indent=2)
         if _openbayestool_available:
             for k in self._log_params:
                 clear_param(k)  # type: ignore
