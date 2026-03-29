@@ -137,6 +137,12 @@ def main():
     cfg = build_cfg(args)
     model = SimCLR(cfg)
 
+    # TODO: make optional
+    # Replace 7x7 stem with 3x3 — the standard fix for 32x32 CIFAR images
+    import torch.nn as nn
+    model.backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    model.backbone.maxpool = nn.Identity()
+
     import torch
     use_gpu = args.gpus > 0 and torch.cuda.is_available()
     trainer = pl.Trainer(
