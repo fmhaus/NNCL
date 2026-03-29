@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpus", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--val_every_n_epochs", type=int, default=1)
+    parser.add_argument("--no_console_log", action="store_true", help="Disable printing metrics to stdout")
     return parser.parse_args()
 
 
@@ -145,7 +146,7 @@ def main():
         sync_batchnorm=use_gpu,
         precision="16-mixed" if use_gpu else "32",
         check_val_every_n_epoch=args.val_every_n_epochs,
-        callbacks=[EpochMetricsPrinter(log_params=vars(args))],
+        callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log)],
     )
     trainer.fit(model, train_loader, val_loader)
 

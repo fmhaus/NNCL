@@ -12,12 +12,14 @@ import lightning.pytorch as pl
 
 
 class EpochMetricsPrinter(pl.Callback):
-    def __init__(self, log_params: Optional[dict] = None):
+    def __init__(self, log_params: Optional[dict] = None, console: bool = True):
         """
         Args:
             log_params: hyperparameters to log once at the start (e.g. lr, batch_size).
+            console: whether to print metrics to stdout each epoch.
         """
         self._log_params = log_params or {}
+        self._console = console
         self._cleared_metrics: set = set()
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
@@ -31,7 +33,8 @@ class EpochMetricsPrinter(pl.Callback):
         metrics = {k: v for k, v in trainer.callback_metrics.items() if "train" in k}
         if not metrics:
             return
-        print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
+        if self._console:
+            print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
         if _openbayestool_available:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
@@ -45,7 +48,8 @@ class EpochMetricsPrinter(pl.Callback):
         metrics = {k: v for k, v in trainer.callback_metrics.items() if "val" in k}
         if not metrics:
             return
-        print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
+        if self._console:
+            print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
         if _openbayestool_available:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
