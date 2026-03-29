@@ -145,7 +145,7 @@ def main():
         sync_batchnorm=use_gpu,
         precision="16-mixed" if use_gpu else "32",
         check_val_every_n_epoch=args.val_every_n_epochs,
-        callbacks=[EpochMetricsPrinter()],
+        callbacks=[EpochMetricsPrinter(log_params=vars(args))],
     )
     trainer.fit(model, train_loader, val_loader)
 
