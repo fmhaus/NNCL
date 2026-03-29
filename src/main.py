@@ -13,6 +13,8 @@ from solo.data.pretrain_dataloader import (
 )
 from torch.utils.data import DataLoader
 from solo.data.classification_dataloader import prepare_datasets as prepare_cls_datasets
+from logger import EpochMetricsPrinter
+
 
 CIFAR100_MEAN = (0.5071, 0.4865, 0.4409)
 CIFAR100_STD = (0.2673, 0.2564, 0.2762)
@@ -143,6 +145,7 @@ def main():
         sync_batchnorm=use_gpu,
         precision="16-mixed" if use_gpu else "32",
         check_val_every_n_epoch=args.val_every_n_epochs,
+        callbacks=[EpochMetricsPrinter()],
     )
     trainer.fit(model, train_loader, val_loader)
 
