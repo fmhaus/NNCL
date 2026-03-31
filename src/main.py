@@ -80,6 +80,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--precision", type=str, default="32", choices=["32", "16-mixed", "bf16-mixed"],
                         help="Training precision. Use 32 for GPUs without tensor cores (e.g. GTX 1660)")
     parser.add_argument("--no_console_log", action="store_true", help="Disable printing metrics to stdout")
+    parser.add_argument("--openbayestool", action="store_true", help="Enable openbayestool logging if available")
     return parser.parse_args()
 
 
@@ -211,7 +212,7 @@ def main():
         sync_batchnorm=use_gpu,
         precision=args.precision,
         check_val_every_n_epoch=args.val_every_n_epochs,
-        callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log)],
+        callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log, openbayestool=args.openbayestool)],
     )
     trainer.fit(model, train_loader, val_loader)
 
