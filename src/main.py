@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 
 import omegaconf
@@ -60,8 +61,8 @@ def build_val_transform(dataset: str) -> transforms.Compose:
         ])
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="SSL pretraining")
+def setup_args(parser: argparse.ArgumentParser) -> None:
+    """Register all training arguments. Called by both main.py and launch_distributed.py."""
     parser.add_argument("--method", type=str, default="simclr", choices=["simclr", "byol"])
     parser.add_argument("--dataset", type=str, default="cifar100", choices=["cifar100", "tinyimagenet"])
     parser.add_argument("--data_dir", type=str, default="./data")
@@ -81,6 +82,16 @@ def parse_args() -> argparse.Namespace:
                         help="Training precision. Use 32 for GPUs without tensor cores (e.g. GTX 1660)")
     parser.add_argument("--no_console_log", action="store_true", help="Disable printing metrics to stdout")
     parser.add_argument("--openbayestool", action="store_true", help="Enable openbayestool logging if available")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="SSL pretraining")
+    setup_args(parser)
+
+    dist = parser.add_argument_group("distributed")
+    dist.add_argument("--master", action="store_true", help="Run as master node (rank 0)")
+    dist.add_argument("--worker", action="store_true", help="Run as worker node")
+
     return parser.parse_args()
 
 
@@ -191,6 +202,14 @@ def build_val_loader(args: argparse.Namespace) -> DataLoader:
 
 def main():
     args = parse_args()
+
+    distributed = args.master or args.worker
+    if distributed:
+        if not os.environ.get("MASTER_ADDR"):
+            raise ValueError("MASTER_ADDR env var is required for distributed training")
+        if not os.environ.get("NODE_RANK"):
+            raise ValueError("NODE_RANK env var is required for distributed training")
+
     pl.seed_everything(args.seed)
 
     train_loader = build_train_loader(args)
@@ -208,6 +227,8 @@ def main():
     trainer = pl.Trainer(
         max_epochs=args.max_epochs,
         devices=args.gpus if use_gpu else 1,
+        num_nodes=int(os.environ.get("NUM_NODES", 1)) if distributed else 1,
+        strategy="ddp" if distributed else "auto",
         accelerator="gpu" if use_gpu else "cpu",
         sync_batchnorm=use_gpu,
         precision=args.precision,

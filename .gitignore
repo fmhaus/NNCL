@@ -12,6 +12,7 @@ build/
 
 # Data
 data/
+lightning_logs/
 
 # OS
 .DS_Store
@@ -19,6 +20,4 @@ data/
 # Virtual environments
 .venv/
 
-# Syntching data sync
-.stfolder/
-.stignore
+launch_distributed.py

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Optional
 
 try:
@@ -29,13 +27,7 @@ class EpochMetricsPrinter(pl.Callback):
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
         if self._log_params and trainer.logger:
             trainer.logger.log_hyperparams(self._log_params)
-            log_dir = trainer.logger.log_dir
-            if log_dir:
-                args_path = Path(log_dir) / "args.json"
-                args_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(args_path, "w") as f:
-                    json.dump(self._log_params, f, indent=2)
-        if self._use_openbayestool:
+        if self._use_openbayestool and trainer.is_global_zero:
             for k in self._log_params:
                 clear_param(k)  # type: ignore
             for k, v in self._log_params.items():
@@ -45,9 +37,9 @@ class EpochMetricsPrinter(pl.Callback):
         metrics = {k: v for k, v in trainer.callback_metrics.items() if "train" in k}
         if not metrics:
             return
-        if self._console:
+        if self._console and trainer.is_global_zero:
             print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
-        if self._use_openbayestool:
+        if self._use_openbayestool and trainer.is_global_zero:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
                     clear_metric(k)  # type: ignore
@@ -60,9 +52,9 @@ class EpochMetricsPrinter(pl.Callback):
         metrics = {k: v for k, v in trainer.callback_metrics.items() if "val" in k}
         if not metrics:
             return
-        if self._console:
+        if self._console and trainer.is_global_zero:
             print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
-        if self._use_openbayestool:
+        if self._use_openbayestool and trainer.is_global_zero:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
                     clear_metric(k)  # type: ignore
