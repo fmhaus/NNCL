@@ -45,7 +45,7 @@ class EpochMetricsPrinter(pl.Callback):
         if not metrics:
             return
         if self._console and trainer.is_global_zero:
-            print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
+            print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()) + f"  time: {epoch_time:.1f}s")
         if self._use_openbayestool and trainer.is_global_zero:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
