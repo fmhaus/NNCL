@@ -212,6 +212,7 @@ def main():
         accelerator="gpu" if use_gpu else "cpu",
         sync_batchnorm=use_gpu,
         precision=args.precision,
+        enable_progress_bar=not distributed,
         check_val_every_n_epoch=args.val_every_n_epochs,
         callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log, openbayestool=args.openbayestool)],
     )
