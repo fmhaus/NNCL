@@ -22,3 +22,4 @@ def setup_args(parser: argparse.ArgumentParser) -> None:
                         help="Training precision. Use 32 for GPUs without tensor cores (e.g. GTX 1660)")
     parser.add_argument("--no_console_log", action="store_true", help="Disable printing metrics to stdout")
     parser.add_argument("--openbayestool", action="store_true", help="Enable openbayestool logging if available")
+    parser.add_argument("--load_last", action="store_true", help="Resume from latest incomplete checkpoint in lightning_logs/")

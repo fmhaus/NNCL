@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 from pathlib import Path
 
@@ -180,6 +181,21 @@ def build_val_loader(args: argparse.Namespace) -> DataLoader:
     )
 
 
+def find_resume_checkpoint(max_epochs: int) -> str | None:
+    """Find the latest checkpoint in lightning_logs/ that hasn't completed max_epochs."""
+    ckpts = sorted(glob.glob("lightning_logs/version_*/checkpoints/epoch=*.ckpt"))
+    for ckpt in reversed(ckpts):
+        # filename: epoch=N-step=M.ckpt
+        name = Path(ckpt).stem
+        try:
+            epoch = int(name.split("epoch=")[1].split("-")[0])
+        except (IndexError, ValueError):
+            continue
+        if epoch < max_epochs - 1:
+            return ckpt
+    return None
+
+
 def main():
     args = parse_args()
 
@@ -218,7 +234,15 @@ def main():
         check_val_every_n_epoch=args.val_every_n_epochs,
         callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log, openbayestool=args.openbayestool)],
     )
-    trainer.fit(model, train_loader, val_loader)
+    ckpt_path = None
+    if args.load_last:
+        ckpt_path = find_resume_checkpoint(args.max_epochs)
+        if ckpt_path:
+            print(f"Resuming from {ckpt_path}", flush=True)
+        else:
+            print("No incomplete checkpoint found, starting fresh.", flush=True)
+
+    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
 
 
 if __name__ == "__main__":
