@@ -282,23 +282,32 @@ name = "nncl"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "matplotlib" },
-    { name = "openbayestool" },
-    { name = "pandas" },
-    { name = "paramiko" },
     { name = "setuptools" },
     { name = "wheel" },
 ]
 
+[package.optional-dependencies]
+analyze = [
+    { name = "matplotlib" },
+    { name = "pandas" },
+]
+launcher = [
+    { name = "paramiko" },
+]
+openbayestool = [
+    { name = "openbayestool" },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "matplotlib", specifier = ">=3.9.4" },
-    { name = "openbayestool", specifier = ">=0.3.2" },
-    { name = "pandas", specifier = ">=2.3.3" },
-    { name = "paramiko", specifier = ">=4.0.0" },
+    { name = "matplotlib", marker = "extra == 'analyze'", specifier = ">=3.9.4" },
+    { name = "openbayestool", marker = "extra == 'openbayestool'", specifier = ">=0.3.2" },
+    { name = "pandas", marker = "extra == 'analyze'", specifier = ">=2.3.3" },
+    { name = "paramiko", marker = "extra == 'launcher'", specifier = ">=4.0.0" },
     { name = "setuptools", specifier = "==68.2.2" },
     { name = "wheel", specifier = ">=0.46.3" },
 ]
+provides-extras = ["launcher", "analyze", "openbayestool"]
 
 [[package]]
 name = "numpy"
