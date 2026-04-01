@@ -202,6 +202,8 @@ def main():
     # Replace 7x7 stem with 3x3 — standard fix for small images (CIFAR / TinyImageNet)
     model.backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
     model.backbone.maxpool = nn.Identity()
+    for p in model.backbone.conv1.parameters():
+        p.data = p.data.contiguous()
 
     use_gpu = args.gpus > 0 and torch.cuda.is_available()
     trainer = pl.Trainer(

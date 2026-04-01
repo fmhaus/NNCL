@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Optional
 
 try:
@@ -23,6 +24,7 @@ class EpochMetricsPrinter(pl.Callback):
         self._console = console
         self._use_openbayestool = openbayestool and _openbayestool_available
         self._cleared_metrics: set = set()
+        self._epoch_start: float = 0.0
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
         if self._log_params and trainer.logger:
@@ -33,7 +35,12 @@ class EpochMetricsPrinter(pl.Callback):
             for k, v in self._log_params.items():
                 log_param(k, v)  # type: ignore
 
+    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
+        self._epoch_start = time.time()
+
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
+        epoch_time = time.time() - self._epoch_start
+        trainer.logger.log_metrics({"epoch_time_s": epoch_time}, step=trainer.current_epoch)
         metrics = {k: v for k, v in trainer.callback_metrics.items() if "train" in k}
         if not metrics:
             return
