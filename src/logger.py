@@ -14,14 +14,16 @@ import lightning.pytorch as pl
 
 
 class EpochMetricsPrinter(pl.Callback):
-    def __init__(self, log_params: Optional[dict] = None, console: bool = True):
+    def __init__(self, log_params: Optional[dict] = None, console: bool = True, openbayestool: bool = True):
         """
         Args:
             log_params: hyperparameters to log once at the start (e.g. lr, batch_size).
             console: whether to print metrics to stdout each epoch.
+            openbayestool: whether to use openbayestool logging if available.
         """
         self._log_params = log_params or {}
         self._console = console
+        self._use_openbayestool = openbayestool and _openbayestool_available
         self._cleared_metrics: set = set()
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # noqa: ARG002
@@ -33,7 +35,7 @@ class EpochMetricsPrinter(pl.Callback):
                 args_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(args_path, "w") as f:
                     json.dump(self._log_params, f, indent=2)
-        if _openbayestool_available:
+        if self._use_openbayestool:
             for k in self._log_params:
                 clear_param(k)  # type: ignore
             for k, v in self._log_params.items():
@@ -45,7 +47,7 @@ class EpochMetricsPrinter(pl.Callback):
             return
         if self._console:
             print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
-        if _openbayestool_available:
+        if self._use_openbayestool:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
                     clear_metric(k)  # type: ignore
@@ -60,7 +62,7 @@ class EpochMetricsPrinter(pl.Callback):
             return
         if self._console:
             print(f"[Epoch {trainer.current_epoch}] " + "  ".join(f"{k}: {v:.4f}" for k, v in metrics.items()))
-        if _openbayestool_available:
+        if self._use_openbayestool:
             for k, v in metrics.items():
                 if k not in self._cleared_metrics:
                     clear_metric(k)  # type: ignore
