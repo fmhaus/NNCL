@@ -1,0 +1,20 @@
+{
+  "method": "simclr",
+  "dataset": "cifar100",
+  "data_dir": "./data",
+  "max_epochs": 200,
+  "batch_size": 256,
+  "lr": 0.3,
+  "weight_decay": 0.0001,
+  "temperature": 0.1,
+  "proj_output_dim": 128,
+  "proj_hidden_dim": 2048,
+  "pred_hidden_dim": 512,
+  "num_workers": 6,
+  "gpus": 1,
+  "seed": 42,
+  "val_every_n_epochs": 1,
+  "precision": "32",
+  "no_console_log": false,
+  "openbayestool": false
+}
