@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = "==3.9.*"
 dependencies = [
+    "matplotlib>=3.9.4",
     "openbayestool>=0.3.2",
+    "pandas>=2.3.3",
     "setuptools==68.2.2",
     "wheel>=0.46.3",
 ]

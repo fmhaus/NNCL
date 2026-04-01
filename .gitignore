@@ -12,7 +12,6 @@ build/
 
 # Data
 data/
-lightning_logs/
 
 # OS
 .DS_Store
