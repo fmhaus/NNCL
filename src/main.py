@@ -1,7 +1,12 @@
 import argparse
 import glob
 import os
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import omegaconf
 import torch
