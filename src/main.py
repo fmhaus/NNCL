@@ -181,7 +181,7 @@ def build_val_loader(args: argparse.Namespace) -> DataLoader:
     )
 
 
-def find_resume_checkpoint(max_epochs: int) -> str | None:
+def find_resume_checkpoint(max_epochs: int) -> "str | None":
     """Find the latest checkpoint in lightning_logs/ that hasn't completed max_epochs."""
     ckpts = sorted(glob.glob("lightning_logs/version_*/checkpoints/epoch=*.ckpt"))
     for ckpt in reversed(ckpts):
