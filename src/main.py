@@ -183,16 +183,21 @@ def build_val_loader(args: argparse.Namespace) -> DataLoader:
 
 def find_resume_checkpoint(max_epochs: int) -> "str | None":
     """Find the latest checkpoint in lightning_logs/ that hasn't completed max_epochs."""
-    ckpts = sorted(glob.glob("lightning_logs/version_*/checkpoints/epoch=*.ckpt"))
-    for ckpt in reversed(ckpts):
-        # filename: epoch=N-step=M.ckpt
-        name = Path(ckpt).stem
-        try:
-            epoch = int(name.split("epoch=")[1].split("-")[0])
-        except (IndexError, ValueError):
+    version_dirs = sorted(
+        glob.glob("lightning_logs/version_*/checkpoints"),
+        key=lambda p: int(p.split("version_")[1].split("/")[0].split("\\")[0])
+    )
+    for version_dir in reversed(version_dirs):
+        ckpts = sorted(
+            glob.glob(f"{version_dir}/epoch=*.ckpt"),
+            key=lambda p: int(Path(p).stem.split("epoch=")[1].split("-")[0])
+        )
+        if not ckpts:
             continue
+        latest = ckpts[-1]
+        epoch = int(Path(latest).stem.split("epoch=")[1].split("-")[0])
         if epoch < max_epochs - 1:
-            return ckpt
+            return latest
     return None
 
 
@@ -238,7 +243,10 @@ def main():
     if args.load_last:
         ckpt_path = find_resume_checkpoint(args.max_epochs)
         if ckpt_path:
-            print(f"Resuming from {ckpt_path}", flush=True)
+            p = Path(ckpt_path)
+            version = p.parts[p.parts.index("checkpoints") - 1]
+            epoch = int(p.stem.split("epoch=")[1].split("-")[0])
+            print(f"Resuming {version}, continuing from epoch {epoch + 1}/{args.max_epochs}", flush=True)
         else:
             print("No incomplete checkpoint found, starting fresh.", flush=True)
 
