@@ -201,7 +201,7 @@ def load_hparams_into_args(version_dir: str, args: argparse.Namespace) -> None:
             elif isinstance(current, float):
                 setattr(args, key, float(raw.strip()))
             else:
-                setattr(args, key, raw.strip())
+                setattr(args, key, raw.strip().strip("'\""))
         except ValueError:
             pass
 
