@@ -256,6 +256,7 @@ def main():
             load_hparams_into_args(version_dir, args)
             logger = CSVLogger("lightning_logs", version=version_num)
             # Pre-populate existing rows so CSVLogger appends rather than overwrites
+            """
             metrics_file = Path("lightning_logs") / f"version_{version_num}" / "metrics.csv"
             if metrics_file.exists():
                 with open(metrics_file, newline="") as f:
@@ -264,6 +265,7 @@ def main():
                         logger.experiment.metrics.append(
                             {k: float(v) for k, v in row.items() if v != ""}
                         )
+            """
             print(f"Resuming {version_str}, continuing from epoch {epoch + 1}/{args.max_epochs}", flush=True)
         else:
             print("No incomplete checkpoint found, starting fresh.", flush=True)
@@ -301,7 +303,7 @@ def main():
         ],
     )
 
-    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
+    trainer.fit(model, train_loader, val_loader, ckpt_path="last")
 
 
 if __name__ == "__main__":
