@@ -12,6 +12,8 @@ import omegaconf
 import torch
 import torch.nn as nn
 import lightning.pytorch as pl
+import csv
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -253,6 +255,15 @@ def main():
             epoch = int(p.stem.split("epoch=")[1].split("-")[0])
             load_hparams_into_args(version_dir, args)
             logger = CSVLogger("lightning_logs", version=version_num)
+            # Pre-populate existing rows so CSVLogger appends rather than overwrites
+            metrics_file = Path("lightning_logs") / f"version_{version_num}" / "metrics.csv"
+            if metrics_file.exists():
+                with open(metrics_file, newline="") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        logger.experiment.metrics.append(
+                            {k: float(v) for k, v in row.items() if v != ""}
+                        )
             print(f"Resuming {version_str}, continuing from epoch {epoch + 1}/{args.max_epochs}", flush=True)
         else:
             print("No incomplete checkpoint found, starting fresh.", flush=True)
@@ -284,7 +295,10 @@ def main():
         enable_progress_bar=not distributed,
         check_val_every_n_epoch=args.val_every_n_epochs,
         logger=logger,
-        callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log, openbayestool=args.openbayestool)],
+        callbacks=[
+            EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log, openbayestool=args.openbayestool),
+            ModelCheckpoint(every_n_epochs=args.val_every_n_epochs, save_top_k=-1, filename="epoch={epoch}"),
+        ],
     )
 
     trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
