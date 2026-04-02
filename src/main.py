@@ -303,7 +303,7 @@ def main():
         ],
     )
 
-    trainer.fit(model, train_loader, val_loader, ckpt_path="last")
+    trainer.fit(model, train_loader, val_loader, ckpt_path="last" if args.load_last else None)
 
 
 if __name__ == "__main__":
