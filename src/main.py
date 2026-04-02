@@ -7,6 +7,7 @@ import omegaconf
 import torch
 import torch.nn as nn
 import lightning.pytorch as pl
+from lightning.pytorch.loggers import CSVLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
@@ -181,6 +182,30 @@ def build_val_loader(args: argparse.Namespace) -> DataLoader:
     )
 
 
+def load_hparams_into_args(version_dir: str, args: argparse.Namespace) -> None:
+    """Overwrite args with values from hparams.yaml of the given version directory."""
+    hparams_path = Path(version_dir) / "hparams.yaml"
+    if not hparams_path.exists():
+        return
+    with open(hparams_path) as f:
+        hparams = dict(line.split(": ", 1) for line in f.read().splitlines() if ": " in line)
+    for key, raw in hparams.items():
+        if not hasattr(args, key):
+            continue
+        current = getattr(args, key)
+        try:
+            if isinstance(current, bool):
+                setattr(args, key, raw.strip() == "true")
+            elif isinstance(current, int):
+                setattr(args, key, int(raw.strip()))
+            elif isinstance(current, float):
+                setattr(args, key, float(raw.strip()))
+            else:
+                setattr(args, key, raw.strip())
+        except ValueError:
+            pass
+
+
 def find_resume_checkpoint(max_epochs: int) -> "str | None":
     """Find the latest checkpoint in lightning_logs/ that hasn't completed max_epochs."""
     version_dirs = sorted(
@@ -211,6 +236,22 @@ def main():
         if not os.environ.get("NODE_RANK"):
             raise ValueError("NODE_RANK env var is required for distributed training")
 
+    ckpt_path = None
+    logger = None
+    if args.load_last:
+        ckpt_path = find_resume_checkpoint(args.max_epochs)
+        if ckpt_path:
+            p = Path(ckpt_path)
+            version_str = p.parts[p.parts.index("checkpoints") - 1]
+            version_num = int(version_str.split("_")[1])
+            version_dir = str(p.parent.parent)
+            epoch = int(p.stem.split("epoch=")[1].split("-")[0])
+            load_hparams_into_args(version_dir, args)
+            logger = CSVLogger("lightning_logs", version=version_num)
+            print(f"Resuming {version_str}, continuing from epoch {epoch + 1}/{args.max_epochs}", flush=True)
+        else:
+            print("No incomplete checkpoint found, starting fresh.", flush=True)
+
     pl.seed_everything(args.seed)
 
     train_loader = build_train_loader(args)
@@ -237,18 +278,9 @@ def main():
         precision=args.precision,
         enable_progress_bar=not distributed,
         check_val_every_n_epoch=args.val_every_n_epochs,
+        logger=logger,
         callbacks=[EpochMetricsPrinter(log_params=vars(args), console=not args.no_console_log, openbayestool=args.openbayestool)],
     )
-    ckpt_path = None
-    if args.load_last:
-        ckpt_path = find_resume_checkpoint(args.max_epochs)
-        if ckpt_path:
-            p = Path(ckpt_path)
-            version = p.parts[p.parts.index("checkpoints") - 1]
-            epoch = int(p.stem.split("epoch=")[1].split("-")[0])
-            print(f"Resuming {version}, continuing from epoch {epoch + 1}/{args.max_epochs}", flush=True)
-        else:
-            print("No incomplete checkpoint found, starting fresh.", flush=True)
 
     trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
 
